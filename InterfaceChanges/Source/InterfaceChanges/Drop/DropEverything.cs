@@ -32,6 +32,8 @@ namespace InterfaceChanges.Drop
             // at queue time and must still match.
             public Dictionary<Job, JobDef> defs = new Dictionary<Job, JobDef>();
             public int startTick;
+            // Worn apparel and the equipped weapon this order queued, so the end line can say which came off.
+            public List<Thing> queuedGear = new List<Thing>();
         }
 
         private static readonly Dictionary<Pawn, PendingOrder> pending = new Dictionary<Pawn, PendingOrder>();
@@ -50,6 +52,7 @@ namespace InterfaceChanges.Drop
             if (pending.TryGetValue(pawn, out PendingOrder previous))
             {
                 Logger.Info("ORDER " + previous.id + " ended (replaced by new order " + orderId + "): " + pawn.LabelShort + " drop everything");
+                LogEndState(pawn, previous);
                 pending.Remove(pawn);
             }
 
@@ -87,6 +90,7 @@ namespace InterfaceChanges.Drop
                         order.jobs.Add(job);
                         order.defs[job] = job.def;
                         apparelQueued++;
+                        order.queuedGear.Add(apparel);
                         LogStarted(ref startedLogged, orderId, pawn, job);
                         Logger.Info(pawn.LabelShort + ": drop everything - " + label + " queued to be taken off");
                     }
@@ -115,6 +119,7 @@ namespace InterfaceChanges.Drop
                         order.jobs.Add(job);
                         order.defs[job] = job.def;
                         weaponQueued++;
+                        order.queuedGear.Add(weapon);
                         LogStarted(ref startedLogged, orderId, pawn, job);
                         Logger.Info(pawn.LabelShort + ": drop everything - " + label + " queued to be dropped");
                     }
@@ -210,6 +215,7 @@ namespace InterfaceChanges.Drop
                 if (reason != null)
                 {
                     Logger.Info("ORDER " + order.id + " ended (" + reason + "): " + pawn?.LabelShort + " drop everything");
+                    LogEndState(pawn, order);
                     done.Add(pawn);
                 }
             }
@@ -218,6 +224,69 @@ namespace InterfaceChanges.Drop
             {
                 pending.Remove(pawn);
             }
+        }
+
+        // Never lets a read failure escape PollOrders or Queue.
+        private static void LogEndState(Pawn pawn, PendingOrder order)
+        {
+            try
+            {
+                Logger.Info(DescribeEndState(pawn, order));
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Info("ORDER " + order.id + " end state: could not be read (" + ex.GetType().Name + ")");
+            }
+        }
+
+        // End-state record for an order: read from the pawn at the moment the
+        // order ends. Gear the order queued is split into off and still on.
+        private static string DescribeEndState(Pawn pawn, PendingOrder order)
+        {
+            if (pawn == null || pawn.Destroyed || pawn.Dead)
+            {
+                return "ORDER " + order.id + " end state: pawn dead or gone, nothing to read";
+            }
+
+            var wornNow = new List<Thing>();
+            if (pawn.apparel != null)
+            {
+                foreach (Apparel a in pawn.apparel.WornApparel)
+                {
+                    wornNow.Add(a);
+                }
+            }
+
+            ThingWithComps weapon = pawn.equipment?.Primary;
+            var off = new List<string>();
+            var stillOn = new List<string>();
+            foreach (Thing t in order.queuedGear)
+            {
+                bool held = wornNow.Contains(t) || (weapon != null && weapon == t);
+                (held ? stillOn : off).Add(t.LabelShortCap);
+            }
+
+            var worn = new List<string>();
+            foreach (Thing t in wornNow)
+            {
+                worn.Add(t.LabelShortCap);
+            }
+
+            var inv = new List<string>();
+            if (pawn.inventory != null)
+            {
+                foreach (Thing t in pawn.inventory.innerContainer)
+                {
+                    inv.Add(t.stackCount > 1 ? t.LabelShortCap + " x" + t.stackCount : t.LabelShortCap);
+                }
+            }
+
+            return "ORDER " + order.id + " end state: " + pawn.LabelShort
+                + " | taken off/dropped (" + off.Count + "): " + (off.Count == 0 ? "none" : string.Join(", ", off.ToArray()))
+                + " | queued but still on (" + stillOn.Count + "): " + (stillOn.Count == 0 ? "none" : string.Join(", ", stillOn.ToArray()))
+                + " | now wearing (" + worn.Count + "): " + (worn.Count == 0 ? "none" : string.Join(", ", worn.ToArray()))
+                + " | weapon: " + (weapon == null ? "none" : weapon.LabelShortCap)
+                + " | inventory (" + inv.Count + "): " + (inv.Count == 0 ? "empty" : string.Join(", ", inv.ToArray()));
         }
 
         private static bool StillQueued(Pawn pawn, Job job, JobDef def)

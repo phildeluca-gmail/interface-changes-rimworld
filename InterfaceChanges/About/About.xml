@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <packageId>phildeluca.interfacechanges</packageId>
+  <name>Ketjak's Interface Changes</name>
+  <author>Ketjak</author>
+  <supportedVersions>
+    <li>1.5</li>
+  </supportedVersions>
+  <description>Small interface changes. First iteration: every main tab, architect category and architect option that has no hotkey gets one from the first free letter of its label (rebindable in Options > Key Bindings), plus a Drop everything button for selected colonists.</description>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+  </loadAfter>
+</ModMetaData>

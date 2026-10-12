@@ -1,0 +1,18 @@
+# Build artifacts
+bin/
+obj/
+*/Assemblies/*.dll
+*/Assemblies/*.pdb
+*.user
+
+# Reference DLLs - copyrighted game and third-party files, NOT ours to
+# redistribute. Populate this folder with setup-lib.bat; see README.md.
+lib/
+
+# Editor/OS cruft
+.vs/
+*.suo
+Thumbs.db
+
+# Local Claude Code settings (machine-specific, not shared)
+.claude/settings.local.json

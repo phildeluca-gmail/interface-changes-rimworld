@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <!-- Drop everything: drops one stack from the pawn's own inventory. Vanilla has no such job. -->
+  <JobDef>
+    <defName>IC_DropInventoryStack</defName>
+    <driverClass>InterfaceChanges.Drop.JobDriver_DropInventoryStack</driverClass>
+    <reportString>dropping an item.</reportString>
+    <playerInterruptible>true</playerInterruptible>
+    <checkOverrideOnDamage>Always</checkOverrideOnDamage>
+  </JobDef>
+</Defs>

@@ -124,7 +124,7 @@ namespace InterfaceChanges.Patches
             {
                 return true;
             }
-            __result = 24f * s;
+            __result = 20f * s;
             return false;
         }
 
@@ -134,10 +134,54 @@ namespace InterfaceChanges.Patches
             ColonistBarSizing.SetCurrentGroup(entryGroup);
         }
 
-        public static void GroupFramePrefix(int group, ref int __state)
+        // Vanilla's GroupFrameRect (the grey box) ends 12 * scale below the lowest
+        // pawn box, which stops short of the weapon icons in a wrapped group. For
+        // such a group the rect is rebuilt here to end FramePad below the lowest
+        // icon; everything else runs vanilla. Same patch, no new one.
+        private static bool frameWarned;
+
+        public static bool GroupFramePrefix(int group, ref int __state, ref Rect __result)
         {
             __state = ColonistBarSizing.CurrentGroup;
             ColonistBarSizing.SetCurrentGroup(group);
+            try
+            {
+                float pad;
+                float iconBottom = ColonistBarSizing.WeaponBottomBelowRowTop(group, out pad);
+                if (iconBottom < 0f)
+                {
+                    return true;
+                }
+                ColonistBar bar = Find.ColonistBar;
+                List<ColonistBar.Entry> entries = bar.Entries;
+                List<Vector2> locs = bar.DrawLocs;
+                float minX = 99999f, maxX = 0f, maxY = 0f;
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    if (entries[i].group == group)
+                    {
+                        minX = Mathf.Min(minX, locs[i].x);
+                        maxX = Mathf.Max(maxX, locs[i].x + bar.Size.x);
+                        maxY = Mathf.Max(maxY, locs[i].y + iconBottom);
+                    }
+                }
+                if (minX > maxX)
+                {
+                    return true;
+                }
+                float margin = 12f * bar.Scale;
+                __result = new Rect(minX - margin, -margin, maxX - minX + 2f * margin, maxY + pad + margin);
+                return false;
+            }
+            catch (Exception e)
+            {
+                if (!frameWarned)
+                {
+                    frameWarned = true;
+                    Logger.Warning("Colonist bar group frame threw " + e.GetType().Name + ", vanilla frame used (logged once): " + e.Message);
+                }
+                return true;
+            }
         }
 
         public static void RestoreFinalizer(int __state)

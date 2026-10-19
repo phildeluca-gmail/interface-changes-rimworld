@@ -19,10 +19,13 @@ namespace InterfaceChanges.Sizing
         private delegate float FindBestScaleDel(ColonistBarDrawLocsFinder self, out bool onlyOneRow, out int maxPerGlobalRow, int groupsCount);
         private delegate void CalcInGroupDel(ColonistBarDrawLocsFinder self, int groupsCount);
 
-        private const float PitchX = 48f + 24f;        // ColonistBar.BaseSize.x + 24
+        private const float PitchX = 48f + 20f;        // ColonistBar.BaseSize.x + 20 (vanilla 24; tightened 2026-10-18)
         private const float PitchY = 48f + 32f;        // ColonistBar.BaseSize.y + 32
         private const float FrameMargin = 12f;         // ColonistBarColonistDrawer.BaseGroupFrameMargin
         private const float MarginTop = 21f;           // ColonistBarDrawLocsFinder.MarginTop
+        // Ordered 2026-10-18: tighter rows (per scale unit) and a grey frame ending this far below the lowest weapon icon.
+        private const float RowTighten = 4f;
+        private const float FramePad = 4f;
         private const float MinOtherScale = 0.35f;
         // Ordered 2026-10-11: the bar, outer frames included, stays this far from both screen edges.
         private const float SideMargin = 200f;
@@ -128,7 +131,9 @@ namespace InterfaceChanges.Sizing
         private static float WeaponClearance(float s)
         {
             float labelH = Prefs.DisableTinyText ? 16f : 12f;
-            return Mathf.Max(0f, labelH - 4f * s) + 1f;
+            // 2026-10-18: halved on "space between the owner and the weapon about half", then
+            // 0.75 on "Undo the distance between weapon and pawn. Make it what you think to reduce distance."
+            return (Mathf.Max(0f, labelH - 4f * s) + 1f) * 0.75f;
         }
 
         // Distance between rows that keeps the icon (vanilla: 0.75 of the box)
@@ -138,7 +143,7 @@ namespace InterfaceChanges.Sizing
         {
             float box = ColonistBar.BaseSize.y;
             float overhang = ColonistBarColonistDrawer.PawnTextureSize.y - box;
-            return Mathf.Max(PitchY * s, (box + 0.75f * box + overhang) * s + WeaponClearance(s));
+            return Mathf.Max(PitchY * s, (box + 0.75f * box + overhang - RowTighten) * s + WeaponClearance(s));
         }
 
         // Height of the last row of a wrapped group: the row's own pitch, or the
@@ -147,7 +152,22 @@ namespace InterfaceChanges.Sizing
         private static float WrappedLastRowExtent(float s)
         {
             float box = ColonistBar.BaseSize.y;
-            return Mathf.Max(PitchY * s, (box + 0.75f * box) * s + WeaponClearance(s));
+            return Mathf.Max(PitchY * s, (box + 0.75f * box) * s + WeaponClearance(s) + FramePad * s);
+        }
+
+        // Bottom of the weapon icon below the row top, in UI pixels, for a group
+        // whose icons are tight under the portrait; -1 when the group is not.
+        // Icon rect bottom = y + h * (factor + 0.875) = y + 1.75h + clearance.
+        public static float WeaponBottomBelowRowTop(int group, out float pad)
+        {
+            pad = 0f;
+            if (!active || group < 0 || group >= groupWeaponTight.Length || !groupWeaponTight[group])
+            {
+                return -1f;
+            }
+            float s = groupScale[group];
+            pad = FramePad * s;
+            return 1.75f * ColonistBar.BaseSize.y * s + WeaponClearance(s);
         }
 
         private static bool WeaponsShown()
@@ -303,8 +323,8 @@ namespace InterfaceChanges.Sizing
             // Outer group frames hang FrameMargin * scale past the first and last boxes.
             float outerLeft = FrameMargin * newScale[0];
             float extent = outerLeft + total + FrameMargin * newScale[groupsCount - 1];
-            // The last slot's pitch is wider than its box (72 vs 48 per scale), so the
-            // visible bar ends 24 * scale before the reserved extent; centre the frames, not the slots.
+            // The last slot's pitch is wider than its box (68 vs 48 per scale), so the
+            // visible bar ends 20 * scale before the reserved extent; centre the frames, not the slots.
             // The fit test used the full extent, so the visible bar is never wider than avail.
             float visibleExtent = extent - (PitchX - ColonistBar.BaseSize.x) * newScale[groupsCount - 1];
             float left = SideMargin + (avail - visibleExtent) / 2f + outerLeft;
